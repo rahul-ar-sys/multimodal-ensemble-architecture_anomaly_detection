@@ -1,0 +1,47 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyTorch and Machine Learning models/data
+*.pth
+*.pt
+*.pkl
+*.ckpt
+*.h5
+*.hdf5
+*.onnx
+
+# Project specific: Ignore the contents of datasets and checkpoints 
+# to prevent committing heavy images and models
+/data/rgb/*
+/data/ir/*
+/data/concat/*
+
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Unit test / coverage reports
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS Generated
+.DS_Store
+Thumbs.db
