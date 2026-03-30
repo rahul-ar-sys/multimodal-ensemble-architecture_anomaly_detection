@@ -13,54 +13,59 @@ The following diagram outlines the data flow across the **parallel bags** (Level
 
 ```mermaid
 graph TD
-    classDef base fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#fff;
-    classDef refiner fill:#065f46,stroke:#10b981,stroke-width:2px,color:#fff;
-    classDef union fill:#4c1d95,stroke:#8b5cf6,stroke-width:2px,color:#fff;
-    classDef final fill:#991b1b,stroke:#ef4444,stroke-width:2px,color:#fff;
+    subgraph Data_Bagging_Layer [Data Bagging Layer: Multimodal Inputs]
+        D1[RGB Dataset]
+        D2[IR Dataset]
+        D3[Concat Dataset]
+    end
 
-    subgraph Bagging Level 0: Parallel Specialized Streams
+    subgraph Boosted_Chain_RGB [Bag 1: RGB Expert Chain]
         direction TB
-        
-        subgraph RGB Stream
-            R_Data[(RGB Dataset)] -->|Train| R_PC[PatchCore Base]:::base
-            R_PC -->|Residuals / Hard Samples| R_SN[SimpleNet Refiner]:::refiner
-            R_Data -->|Inference| R_PC
-            R_Data -->|Inference| R_SN
-            R_PC -.-> R_Score(Score RGB_PC)
-            R_SN -.-> R_Score_SN(Score RGB_SN)
-        end
-
-        subgraph IR Stream
-            I_Data[(IR Dataset)] -->|Train| I_PC[PatchCore Base]:::base
-            I_PC -->|Residuals / Hard Samples| I_SN[SimpleNet Refiner]:::refiner
-            I_Data -->|Inference| I_PC
-            I_Data -->|Inference| I_SN
-            I_PC -.-> I_Score(Score IR_PC)
-            I_SN -.-> I_Score_SN(Score IR_SN)
-        end
-
-        subgraph Concat Stream
-            C_Data[(Concat Dataset)] -->|Train| C_PC[PatchCore Base<br>WideResNet-101]:::base
-            C_PC -->|Residuals / Hard Samples| C_SN[SimpleNet Refiner]:::refiner
-            C_Data -->|Inference| C_PC
-            C_Data -->|Inference| C_SN
-            C_PC -.-> C_Score(Score Concat_PC)
-            C_SN -.-> C_Score_SN(Score Concat_SN)
-        end
+        PC_RGB[PatchCore: Base Expert] --> SN_RGB[SimpleNet: Residual Refiner]
+        SN_RGB --> Score_RGB[RGB Anomaly Vector]
     end
 
-    subgraph Stacking Level 1: Meta-Learner (The Umpire)
-        OOF[OOF 6-Dimensional Vector<br>v = R_PC, R_SN, I_PC, I_SN, C_PC, C_SN]:::union
-        R_Score --> OOF
-        R_Score_SN --> OOF
-        I_Score --> OOF
-        I_Score_SN --> OOF
-        C_Score --> OOF
-        C_Score_SN --> OOF
-        
-        OOF -->|Fit| Umpire{Level-1 Stacker<br/>XGBoost / Random Forest}:::final
-        Umpire --> Final[Final Decision<br>Pixel AUROC / PRO Score]
+    subgraph Boosted_Chain_IR [Bag 2: IR Expert Chain]
+        direction TB
+        PC_IR[PatchCore: Base Expert] --> SN_IR[SimpleNet: Residual Refiner]
+        SN_IR --> Score_IR[IR Anomaly Vector]
     end
+
+    subgraph Boosted_Chain_Concat [Bag 3: Concat Expert Chain]
+        direction TB
+        PC_CC[PatchCore: Base Expert] --> SN_CC[SimpleNet: Residual Refiner]
+        SN_CC --> Score_CC[Concat Anomaly Vector]
+    end
+
+    %% Connections from Data to Bags
+    D1 --> Boosted_Chain_RGB
+    D2 --> Boosted_Chain_IR
+    D3 --> Boosted_Chain_Concat
+
+    subgraph Stacking_Layer [Level-1: Meta-Learner]
+        direction TB
+        Vector[6-Dimensional Feature Vector]
+        ML[Meta-Learner: XGBoost / Random Forest]
+        Vector --> ML
+    end
+
+    %% Connections to Stacking
+    Score_RGB --> Vector
+    Score_IR --> Vector
+    Score_CC --> Vector
+
+    subgraph Output_Layer [Final Decision]
+        Result{Defect / Normal}
+        Heatmap[Fused Anomaly Localization Map]
+    end
+
+    ML --> Result
+    ML --> Heatmap
+
+    %% Styling
+    style Data_Bagging_Layer fill:#f9f,stroke:#333,stroke-width:2px
+    style Stacking_Layer fill:#bbf,stroke:#333,stroke-width:2px
+    style Output_Layer fill:#bfb,stroke:#333,stroke-width:2px
 ```
 
 ---
